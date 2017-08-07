@@ -175,6 +175,32 @@ static int write_client(SOCKET sock, SOCKADDR_IN *sin, const char *buffer, const
 	return 0;
 }
 
+bool printBullet_callback(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+	BulletInfo BulletInfo;
+
+	if (!pb_decode(stream, BulletInfo_fields, &BulletInfo))
+		return false;
+
+	printf("%d %d\n", BulletInfo.X, BulletInfo.Y);
+
+	return true;
+}
+
+bool printPlayer_callback(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+	PlayerInfo PlayerInfo;
+	PlayerInfo.bullets.funcs.decode = &printBullet_callback;
+	if (!pb_decode(stream, PlayerInfo_fields, &PlayerInfo))
+		return false;
+
+	printf("%s %d %d\n", PlayerInfo.Name, PlayerInfo.X, PlayerInfo.Y);
+
+	return true;
+}
+
+
+
 int main()
 {
 	bool status = false;
@@ -188,26 +214,31 @@ int main()
 	pb_istream_t stream = pb_istream_from_buffer(buffer, count);
 	const pb_field_t *type = decode_unionmessage_type(&stream);
 
-	if (type == MsgType1_fields)
+	if (type == msgFiredBullet_fields)
 	{
-		MsgType1 msg;
-		status = decode_unionmessage_contents(&stream, MsgType1_fields, &msg);
-		printf("Got MsgType1: %d\n", msg.value);
+		msgFiredBullet firedBullet;
+
+		status = decode_unionmessage_contents(&stream, msgFiredBullet_fields, &firedBullet);
+		printf("Got msgFiredBullet: X:%d Y:%d\n", firedBullet.X,firedBullet.Y);
 	}
-	else if (type == MsgType2_fields)
+
+	else if (type == msgGameData_fields)
 	{
-		MsgType2 msg;
-		status = decode_unionmessage_contents(&stream, MsgType2_fields, &msg);
-		printf("Got MsgType2: %s\n", msg.value ? "true" : "false");
+		msgGameData msg;
+		printf("Got msgGameData");
+		msg.players.funcs.decode = &printPlayer_callback;
+		status = decode_unionmessage_contents(&stream, msgGameData_fields, &msg);
+		
 	}
-	else if (type == MsgType3_fields)
+
+	/*else if (type == MsgType3_fields)
 	{
 		MsgType3 msg;
 		printf("Got MsgType3");
 		msg.playerName.funcs.decode = &print_string;
 		msg.playerName.arg = "repeatedstring: \"%s\"\n";
 		status = decode_unionmessage_contents(&stream, MsgType3_fields, &msg);
-	}
+	}*/
 
 		
 	while (true)

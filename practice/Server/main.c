@@ -163,7 +163,62 @@ static int write_client(SOCKET sock, SOCKADDR_IN *sin, const uint8_t *buffer,con
 	}
 	return n;
 }
+bool listBulletForPlayers_callback(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
 
+
+	BulletInfo BulletInfo;
+	char *p = strdup("AzRun");
+	int i = 30;
+	while (i > 1)
+	{
+
+		BulletInfo.X = 0;
+		BulletInfo.Y = 42;
+
+		/* This encodes the header for the field, based on the constant info
+		* from pb_field_t. */
+		if (!pb_encode_tag_for_field(stream, field))
+			return false;
+
+		/* This encodes the data for the field, based on our FileInfo structure. */
+		if (!pb_encode_submessage(stream, BulletInfo_fields, &BulletInfo))
+			return false;
+		i--;
+	}
+
+	return true;
+}
+
+bool listPlayers_callback(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+	
+	
+	PlayerInfo playerInfo;
+	char *p = strdup("AzRun");
+	int i = 4;
+	while (i > 1)
+	{
+		
+		strncpy(playerInfo.Name,p, sizeof(playerInfo.Name));
+		
+		playerInfo.Name[sizeof(playerInfo.Name) - 1] = '\0';
+		playerInfo.bullets.funcs.encode = &listBulletForPlayers_callback;
+		playerInfo.X = 10;
+		playerInfo.Y = 12;
+		/* This encodes the header for the field, based on the constant info
+		* from pb_field_t. */
+		if (!pb_encode_tag_for_field(stream, field))
+			return false;
+
+		/* This encodes the data for the field, based on our FileInfo structure. */
+		if (!pb_encode_submessage(stream, PlayerInfo_fields, &playerInfo))
+			return false;
+		i--;
+	}
+
+	return true;
+}
 
 int main()
 {
@@ -178,11 +233,20 @@ int main()
 		int count = read_client(sock, &csin, s_name);
 		printf("Got resquest.\n");
 		pb_ostream_t output = pb_ostream_from_buffer(buffer, sizeof(buffer));
-		MsgType1 msg1 = { 42 };
+		/*MsgType1 msg1 = { 42 };
 		MsgType2 msg2 = { true };
 		MsgType3 msg3;
 		msg3.playerName.funcs.encode = &encode_repeatedstring;
-		status = encode_unionmessage(&output, MsgType3_fields, &msg3);
+		status = encode_unionmessage(&output, MsgType1_fields, &msg1);*/
+
+		/*msgFiredBullet firedBullet;
+		firedBullet.X = 142;
+		firedBullet.Y = 142;
+		status = encode_unionmessage(&output, msgFiredBullet_fields, &firedBullet);*/
+		msgGameData msgGameData;
+		msgGameData.GameMode = 1;
+		msgGameData.players.funcs.encode = &listPlayers_callback;
+		status = encode_unionmessage(&output, msgGameData_fields, &msgGameData); 
 		bool sended = write_client(sock, &csin, buffer, output.bytes_written) == output.bytes_written;
 		if (!sended)
 			printf("Send error.\n");
